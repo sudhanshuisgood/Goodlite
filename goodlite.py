@@ -3,11 +3,11 @@
 """
 goodlite Editor - a lightweight, fast code editor with a built-in terminal.
 
-* Pure standard library (Tkinter) -> tiny RAM footprint (~25-40 MB), instant start.
-* Regex-based syntax highlighting for 20 languages (debounced, viewport-aware
+- Pure standard library (Tkinter) -> tiny RAM footprint (~25-40 MB), instant start.
+- Regex-based syntax highlighting for 20 languages (debounced, viewport-aware
   for big files so typing never lags).
-* Tabbed editing, Open / Save / Save As / New, dark + light themes.
-* Built-in terminal: F5 runs the current file and streams live output / errors,
+- Tabbed editing, Open / Save / Save As / New, dark + light themes.
+- Built-in terminal: F5 runs the current file and streams live output / errors,
   and the input box sends text to the running program (stdin) or, when nothing
   is running, executes shell commands.
 
@@ -35,8 +35,8 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 APP_NAME = "Goodlite Editor"
 IS_WIN = os.name == "nt"
-FROZEN = getattr(sys, "frozen", False)          # True when running as PyInstaller .exe
-CREATE_NO_WINDOW = 0x08000000                   # hide the console window of child processes
+FROZEN = getattr(sys, "frozen", False)           # True when running as PyInstaller .exe
+CREATE_NO_WINDOW = 0x08000000                    # hide the console window of child processes
 
 FULL_HL_LINES = 4000      # files up to this many lines are highlighted completely
 HL_MARGIN = 150           # for bigger files: lines highlighted above/below the viewport
@@ -157,7 +157,7 @@ _lang("C#", _clike(
     "abstract as base break case catch checked class const continue default delegate do else "
     "enum event explicit extern finally fixed for foreach goto if implicit in interface "
     "internal is lock namespace new operator out override params private protected public "
-    "readonly ref return sealed sizeof stackalloc static struct switch this throw try typeof "
+    "readonly ref return sealed stackalloc static struct switch this throw try typeof "
     "unchecked unsafe using virtual volatile while async await var yield record init get set "
     "value when where partial true false null",
     "bool byte char decimal double float int long object sbyte short string uint ulong "
@@ -265,8 +265,8 @@ _lang("HTML", [("comment", r"<!--[\s\S]*?(?:-->|\Z)"),
                ("special", r"<![Dd][Oo][Cc][Tt][Yy][Pp][Ee][^>]*>")] + _MARKUP_COMMON +
       [("special", r"&#?\w+;")], exts=("html", "htm", "xhtml"), comment=None)
 _lang("XML", [("comment", r"<!--[\s\S]*?(?:-->|\Z)"),
-              ("string", r"<!\[CDATA\[[\s\S]*?(?:\]\]>|\Z)"),
-              ("special", r"<\?[\s\S]*?(?:\?>|\Z)")] + _MARKUP_COMMON +
+             ("string", r"<!\[CDATA\[[\s\S]*?(?:\]\]>|\Z)"),
+             ("special", r"<\?[\s\S]*?(?:\?>|\Z)")] + _MARKUP_COMMON +
       [("special", r"&#?\w+;")], exts=("xml", "svg", "xsl", "xslt", "xaml", "csproj", "plist"))
 
 # ---- CSS ----------------------------------------------------------------------
@@ -725,7 +725,7 @@ class EditorTab(ttk.Frame):
             buckets.setdefault(tag, []).extend(
                 ("%d.%d" % (s_line + l1, s - starts[l1]), "%d.%d" % (s_line + l2, e - starts[l2])))
         for tag, idx in buckets.items():
-            for i in range(0, len(idx), 2000):      # keep Tcl argument lists reasonable
+            for i in range(0, len(idx), 2000):     # keep Tcl argument lists reasonable
                 t.tag_add(tag, *idx[i:i + 2000])
 
     # ------------------------------------------------------------------ gutter
@@ -756,7 +756,7 @@ class EditorTab(ttk.Frame):
             ln = int(idx.split(".")[0])
             if ln != prev:
                 c.create_text(width - 8, d[1], anchor="ne", text=str(ln), font=font,
-                              fill=th["gutter_cur"] if ln == cur else th["gutter_fg"])
+                            fill=th["gutter_cur"] if ln == cur else th["gutter_fg"])
                 prev = ln
             nxt = t.index("%s +1 display lines" % idx)
             if nxt == idx:
@@ -923,7 +923,7 @@ class TerminalPanel(ttk.Frame):
         dec = codecs.getincrementaldecoder(enc)(errors="replace")
         try:
             while True:
-                data = proc.stdout.read(4096)       # raw pipe: returns what is available
+                data = proc.stdout.read(4096)        # raw pipe: returns what is available
                 if not data:
                     break
                 q.put(dec.decode(data))
@@ -988,7 +988,7 @@ class TerminalPanel(ttk.Frame):
     def _submit(self, _e=None):
         line = self.entry.get()
         self.entry.delete(0, "end")
-        if self.is_running():                       # forward to the program's stdin
+        if self.is_running():                        # forward to the program's stdin
             self.write(line + "\n", "cmd")
             try:
                 self.proc.stdin.write((line + "\n").encode(self._enc, errors="replace"))
@@ -1067,6 +1067,7 @@ class App:
         self.terminal.write("%s ready.  F5 = run current file,  Shift+F5 = stop,  "
                             "Ctrl+` = show/hide terminal.\n" % APP_NAME, "dim")
         self.root.protocol("WM_DELETE_WINDOW", self.on_exit)
+
     def stop_run(self):
         self.terminal.stop()
 
@@ -1104,13 +1105,32 @@ class App:
         for w in (self.st_enc, self.st_lang):
             w.pack(side="right", padx=10)
 
-        self.paned = ttk.PanedWindow(root, orient="vertical")
-        self.paned.pack(fill="both", expand=True)
+        # Main Horizontal PanedWindow for Sidebar + Editor/Terminal workspace
+        main_paned = ttk.PanedWindow(root, orient="horizontal")
+        main_paned.pack(fill="both", expand=True)
+
+        # --- SIDEBAR FILE EXPLORER ---
+        self.sidebar_frame = ttk.Frame(main_paned, width=220)
+        main_paned.add(self.sidebar_frame, weight=0)
+
+        self.tree = ttk.Treeview(self.sidebar_frame, selectmode="browse")
+        self.tree.pack(side="left", fill="both", expand=True)
+        self.tree.bind("<Double-1>", self._on_tree_double_click)
+
+        sb_tree = ttk.Scrollbar(self.sidebar_frame, orient="vertical", command=self.tree.yview)
+        sb_tree.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=sb_tree.set)
+
+        # Right side vertical paned window for notebook and terminal
+        self.paned = ttk.PanedWindow(main_paned, orient="vertical")
+        main_paned.add(self.paned, weight=4)
+
         self.notebook = ttk.Notebook(self.paned)
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
         self.notebook.bind("<ButtonRelease-2>", self._on_tab_middle_click)
         self.notebook.bind("<Button-3>", self._on_tab_right_click)
         self.paned.add(self.notebook, weight=4)
+
         self.terminal = TerminalPanel(self.paned, self)
         self.paned.add(self.terminal, weight=1)
         self.terminal_visible = True
@@ -1127,6 +1147,8 @@ class App:
         m = tk.Menu(bar, tearoff=0)
         m.add_command(label="New File", accelerator="Ctrl+N", command=self.new_file)
         m.add_command(label="Open…", accelerator="Ctrl+O", command=self.open_files)
+        m.add_command(label="Open Folder…", command=self.open_folder)
+        m.add_separator()
         m.add_command(label="Save", accelerator="Ctrl+S", command=self.save_current)
         m.add_command(label="Save As…", accelerator="Ctrl+Shift+S", command=self.save_as_current)
         m.add_separator()
@@ -1175,6 +1197,39 @@ class App:
         bar.add_cascade(label="View", menu=m)
         root.configure(menu=bar)
 
+    def open_folder(self):
+        folder_path = filedialog.askdirectory(parent=self.root)
+        if folder_path:
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            folder_name = os.path.basename(folder_path)
+            root_node = self.tree.insert("", "end", text=folder_name, open=True, values=(folder_path,))
+            self._populate_tree(root_node, folder_path)
+            self.terminal.cwd = folder_path
+            self.terminal._update_prompt()
+
+    def _populate_tree(self, parent_node, path):
+        try:
+            for item in os.listdir(path):
+                full_path = os.path.join(path, item)
+                if os.path.isdir(full_path):
+                    node = self.tree.insert(parent_node, "end", text=item, open=False, values=(full_path,))
+                    self._populate_tree(node, full_path)
+                else:
+                    self.tree.insert(parent_node, "end", text=item, values=(full_path,))
+        except PermissionError:
+            pass
+
+    def _on_tree_double_click(self, event):
+        item_id = self.tree.selection()
+        if not item_id:
+            return
+        values = self.tree.item(item_id, "values")
+        if values:
+            file_path = values[0]
+            if os.path.isfile(file_path):
+                self.open_path(file_path)
+
     def _build_findbar(self):
         fb = ttk.Frame(self.root)
         self.findbar = fb
@@ -1215,12 +1270,17 @@ class App:
         st.configure("TNotebook.Tab", background=th["tab_bg"], foreground=th["ui_fg"],
                      padding=(14, 5), borderwidth=0)
         st.map("TNotebook.Tab", background=[("selected", th["bg"])],
-               foreground=[("selected", th["fg"])])
+                foreground=[("selected", th["fg"])])
         st.configure("TButton", background=th["btn"], foreground=th["ui_fg"], padding=(8, 1),
                      borderwidth=0, relief="flat")
         st.map("TButton", background=[("active", th["btn_hover"])])
         st.configure("TCheckbutton", background=th["ui_bg"], foreground=th["ui_fg"])
         st.map("TCheckbutton", background=[("active", th["ui_bg"])])
+        
+        # --- TREEVIEW DARK THEME FIX ---
+        st.configure("Treeview", background=th["bg"], foreground=th["fg"], fieldbackground=th["bg"], borderwidth=0)
+        st.map("Treeview", background=[('selected', th["sel"])], foreground=[('selected', th["fg"])])
+        
         for orient in ("Vertical", "Horizontal"):
             st.configure(orient + ".TScrollbar", background=th["scroll"], troughcolor=th["bg"],
                          bordercolor=th["bg"], lightcolor=th["scroll"], darkcolor=th["scroll"],
@@ -1322,7 +1382,7 @@ class App:
             return
         self.st_lang.configure(text=tab.lang)
         self.st_enc.configure(text="%s  %s" % (tab.encoding.upper().replace("-SIG", " BOM"),
-                                               {"\n": "LF", "\r\n": "CRLF", "\r": "CR"}[tab.eol]))
+                                              {"\n": "LF", "\r\n": "CRLF", "\r": "CR"}[tab.eol]))
         self.lang_var.set(tab.lang)
 
     def status_message(self, msg):
@@ -1350,7 +1410,7 @@ class App:
 
     def open_path(self, path):
         path = os.path.abspath(path)
-        for t in self.tabs():                       # already open -> just switch to it
+        for t in self.tabs():                        # already open -> just switch to it
             if t.path and os.path.normcase(t.path) == os.path.normcase(path):
                 self.notebook.select(t)
                 return t
@@ -1608,7 +1668,6 @@ class App:
             with open(tab.path, "r", encoding="utf-8", errors="ignore") as f:
                 code_content = f.read()
             
-            # Dangerous keywords check jo system ko nuksan de sakte hain
             dangerous_patterns = ["os.remove", "shutil.rmtree", "os.rmdir", "subprocess", "eval(", "exec("]
             found_risks = [p for p in dangerous_patterns if p in code_content]
             
@@ -1651,7 +1710,7 @@ class App:
 
 
 def main():
-    if IS_WIN:                                      # crisp text on high-DPI displays
+    if IS_WIN:                                    # crisp text on high-DPI displays
         try:
             import ctypes
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
